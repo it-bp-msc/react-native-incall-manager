@@ -33,9 +33,9 @@ import android.os.PowerManager;
 import android.os.Build;
 import android.os.Handler;
 import android.provider.Settings;
-import android.support.annotation.Nullable;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
+import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.Display;
@@ -278,7 +278,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
                 @Override
                 public void onReceive(Context context, Intent intent) {
                     if (ACTION_HEADSET_PLUG.equals(intent.getAction())) {
-                        hasWiredHeadset = intent.getIntExtra("state", 0) == 1;
+                        hasWiredHeadset = true;
                         updateAudioRoute();
                         String deviceName = intent.getStringExtra("name");
                         if (deviceName == null) {
@@ -570,22 +570,22 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
                 Log.d(TAG, "stop ringtone");
                 stopRingtone(); // --- use brandnew instance
             }
-            storeOriginalAudioSetup();
-            requestAudioFocus();
+//            storeOriginalAudioSetup();
+//            requestAudioFocus();
             startEvents();
-            bluetoothManager.start();
+//            bluetoothManager.start();
             // TODO: even if not acquired focus, we can still play sounds. but need figure out which is better.
             //getCurrentActivity().setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
-            audioManager.setMode(defaultAudioMode);
-            setSpeakerphoneOn(defaultSpeakerOn);
-            setMicrophoneMute(false);
+//            audioManager.setMode(defaultAudioMode);
+//            setSpeakerphoneOn(defaultSpeakerOn);
+//            setMicrophoneMute(false);
             forceSpeakerOn = 0;
             hasWiredHeadset = hasWiredHeadset();
             defaultAudioDevice = (defaultSpeakerOn) ? AudioDevice.SPEAKER_PHONE : (hasEarpiece()) ? AudioDevice.EARPIECE : AudioDevice.SPEAKER_PHONE;
             userSelectedAudioDevice = AudioDevice.NONE;
             selectedAudioDevice = AudioDevice.NONE;
-            audioDevices.clear();
-            updateAudioRoute();
+//            audioDevices.clear();
+//            updateAudioRoute();
 
             if (!ringbackUriType.isEmpty()) {
                 startRingback(ringbackUriType);
@@ -609,12 +609,12 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
                 Log.d(TAG, "stop() InCallManager");
                 stopBusytone();
                 stopEvents();
-                setSpeakerphoneOn(false);
-                setMicrophoneMute(false);
+//                setSpeakerphoneOn(false);
+//                setMicrophoneMute(false);
                 forceSpeakerOn = 0;
-                bluetoothManager.stop();
-                restoreOriginalAudioSetup();
-                releaseAudioFocus();
+//                bluetoothManager.stop();
+//                restoreOriginalAudioSetup();
+//                releaseAudioFocus();
                 audioManagerActivated = false;
             }
             wakeLockUtils.releasePartialWakeLock();
@@ -622,17 +622,17 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     }
 
     private void startEvents() {
-        startWiredHeadsetEvent();
-        startNoisyAudioEvent();
-        startMediaButtonEvent();
+//        startWiredHeadsetEvent();
+//        startNoisyAudioEvent();
+//        startMediaButtonEvent();
         startProximitySensor(); // --- proximity event always enable, but only turn screen off when audio is routing to earpiece.
         setKeepScreenOn(true);
     }
 
     private void stopEvents() {
-        stopWiredHeadsetEvent();
-        stopNoisyAudioEvent();
-        stopMediaButtonEvent();
+//        stopWiredHeadsetEvent();
+//        stopNoisyAudioEvent();
+//        stopMediaButtonEvent();
         stopProximitySensor();
         setKeepScreenOn(false);
         turnScreenOn();

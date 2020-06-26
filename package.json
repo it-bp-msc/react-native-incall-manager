@@ -1,15 +1,41 @@
 {
-  "name": "react-native-incall-manager",
-  "version": "3.2.7",
+  "_args": [
+    [
+      "react-native-incall-manager@3.2.5",
+      "/Users/jegorenkov/Documents/Projects/ROOM/mobile"
+    ]
+  ],
+  "_from": "react-native-incall-manager@3.2.5",
+  "_id": "react-native-incall-manager@3.2.5",
+  "_inBundle": false,
+  "_integrity": "sha512-LZdM/7DFegi1ZVUF5tyyh7igHeABsL1lJpQMPw0yrlC+RgRE8f+EnS3QqkFzm0UoZAPGz9O65hXIxtmnIiorCg==",
+  "_location": "/react-native-incall-manager",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "react-native-incall-manager@3.2.5",
+    "name": "react-native-incall-manager",
+    "escapedName": "react-native-incall-manager",
+    "rawSpec": "3.2.5",
+    "saveSpec": null,
+    "fetchSpec": "3.2.5"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/react-native-incall-manager/-/react-native-incall-manager-3.2.5.tgz",
+  "_spec": "3.2.5",
+  "_where": "/Users/jegorenkov/Documents/Projects/ROOM/mobile",
+  "author": {
+    "name": "Henry Lin",
+    "email": "zxcpoiu@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/zxcpoiu/react-native-incall-manager/issues"
+  },
   "description": "Handling media-routes/sensors/events during a audio/video chat on React Native",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/zxcpoiu/react-native-incall-manager.git"
-  },
+  "homepage": "https://github.com/zxcpoiu/react-native-incall-manager#readme",
   "keywords": [
     "React",
     "ReactNative",
@@ -21,13 +47,18 @@
     "SIP",
     "Voip"
   ],
-  "author": "Henry Lin <zxcpoiu@gmail.com>",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/zxcpoiu/react-native-incall-manager/issues"
-  },
-  "homepage": "https://github.com/zxcpoiu/react-native-incall-manager#readme",
+  "main": "index.js",
+  "name": "react-native-incall-manager",
   "peerDependencies": {
     "react-native": ">=0.40.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zxcpoiu/react-native-incall-manager.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "3.2.5"
 }
