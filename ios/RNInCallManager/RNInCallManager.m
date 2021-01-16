@@ -18,22 +18,22 @@
 @implementation RNInCallManager
 {
     UIDevice *_currentDevice;
-
+    
     AVAudioSession *_audioSession;
     AVAudioPlayer *_ringtone;
     AVAudioPlayer *_ringback;
     AVAudioPlayer *_busytone;
-
+    
     NSURL *_defaultRingtoneUri;
     NSURL *_defaultRingbackUri;
     NSURL *_defaultBusytoneUri;
     NSURL *_bundleRingtoneUri;
     NSURL *_bundleRingbackUri;
     NSURL *_bundleBusytoneUri;
-
+    
     //BOOL isProximitySupported;
     BOOL _proximityIsNear;
-
+    
     // --- tags to indicating which observer has added
     BOOL _isProximityRegistered;
     BOOL _isAudioSessionInterruptionRegistered;
@@ -41,7 +41,7 @@
     BOOL _isAudioSessionMediaServicesWereLostRegistered;
     BOOL _isAudioSessionMediaServicesWereResetRegistered;
     BOOL _isAudioSessionSilenceSecondaryAudioHintRegistered;
-
+    
     // -- notification observers
     id _proximityObserver;
     id _audioSessionInterruptionObserver;
@@ -49,7 +49,7 @@
     id _audioSessionMediaServicesWereLostObserver;
     id _audioSessionMediaServicesWereResetObserver;
     id _audioSessionSilenceSecondaryAudioHintObserver;
-
+    
     NSString *_incallAudioMode;
     NSString *_incallAudioCategory;
     NSString *_origAudioCategory;
@@ -76,30 +76,30 @@ RCT_EXPORT_MODULE(InCallManager)
         _ringtone = nil;
         _ringback = nil;
         _busytone = nil;
-
+        
         _defaultRingtoneUri = nil;
         _defaultRingbackUri = nil;
         _defaultBusytoneUri = nil;
         _bundleRingtoneUri = nil;
         _bundleRingbackUri = nil;
         _bundleBusytoneUri = nil;
-
+        
         _proximityIsNear = NO;
-
+        
         _isProximityRegistered = NO;
         _isAudioSessionInterruptionRegistered = NO;
         _isAudioSessionRouteChangeRegistered = NO;
         _isAudioSessionMediaServicesWereLostRegistered = NO;
         _isAudioSessionMediaServicesWereResetRegistered = NO;
         _isAudioSessionSilenceSecondaryAudioHintRegistered = NO;
-
+        
         _proximityObserver = nil;
         _audioSessionInterruptionObserver = nil;
         _audioSessionRouteChangeObserver = nil;
         _audioSessionMediaServicesWereLostObserver = nil;
         _audioSessionMediaServicesWereResetObserver = nil;
         _audioSessionSilenceSecondaryAudioHintObserver = nil;
-
+        
         _incallAudioMode = AVAudioSessionModeVoiceChat;
         _incallAudioCategory = AVAudioSessionCategoryPlayAndRecord;
         _origAudioCategory = nil;
@@ -109,7 +109,7 @@ RCT_EXPORT_MODULE(InCallManager)
         _recordPermission = nil;
         _cameraPermission = nil;
         _media = @"audio";
-
+        
         NSLog(@"RNInCallManager.init(): initialized");
     }
     return self;
@@ -128,48 +128,51 @@ RCT_EXPORT_MODULE(InCallManager)
 }
 
 RCT_EXPORT_METHOD(start:(NSString *)mediaType
-                   auto:(BOOL)_auto
-        ringbackUriType:(NSString *)ringbackUriType)
+                  auto:(BOOL)_auto
+                  ringbackUriType:(NSString *)ringbackUriType)
 {
-    if (_audioSessionInitialized) {
-        return;
-    }
-    if (![_recordPermission isEqualToString:@"granted"]) {
-        NSLog(@"RNInCallManager.start(): recordPermission should be granted. state: %@", _recordPermission);
-        return;
-    }
-    _media = mediaType;
-
-    // --- auto is always true on ios
-    if ([_media isEqualToString:@"video"]) {
-        _incallAudioMode = AVAudioSessionModeVideoChat;
-    } else {
-        _incallAudioMode = AVAudioSessionModeVoiceChat;
-    }
-    NSLog(@"RNInCallManager.start() start InCallManager. media=%@, type=%@, mode=%@", _media, _media, _incallAudioMode);
-    [self storeOriginalAudioSetup];
-    _forceSpeakerOn = 0;
-    [self startAudioSessionNotification];
-    [self audioSessionSetCategory:_incallAudioCategory
-                          options:0
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (_audioSessionInitialized) {
+            return;
+        }
+        if (![_recordPermission isEqualToString:@"granted"]) {
+            NSLog(@"RNInCallManager.start(): recordPermission should be granted. state: %@", _recordPermission);
+            return;
+        }
+        _media = mediaType;
+        
+        // --- auto is always true on ios
+        if ([_media isEqualToString:@"video"]) {
+            _incallAudioMode = AVAudioSessionModeVideoChat;
+        } else {
+            _incallAudioMode = AVAudioSessionModeVoiceChat;
+        }
+        NSLog(@"RNInCallManager.start() start InCallManager. media=%@, type=%@, mode=%@", _media, _media, _incallAudioMode);
+        [self storeOriginalAudioSetup];
+        _forceSpeakerOn = 0;
+        [self startAudioSessionNotification];
+        [self audioSessionSetCategory:_incallAudioCategory
+                              options:0
+                           callerMemo:NSStringFromSelector(_cmd)];
+        [self audioSessionSetMode:_incallAudioMode
                        callerMemo:NSStringFromSelector(_cmd)];
-    [self audioSessionSetMode:_incallAudioMode
-                   callerMemo:NSStringFromSelector(_cmd)];
-    [self audioSessionSetActive:YES
-                        options:0
-                     callerMemo:NSStringFromSelector(_cmd)];
-
-    if (ringbackUriType.length > 0) {
-        NSLog(@"RNInCallManager.start() play ringback first. type=%@", ringbackUriType);
-        [self startRingback:ringbackUriType];
-    }
-
-    if ([_media isEqualToString:@"audio"]) {
-        [self startProximitySensor];
-    }
-    [self setKeepScreenOn:YES];
-    _audioSessionInitialized = YES;
-    //self.debugAudioSession()
+        [self audioSessionSetActive:YES
+                            options:0
+                         callerMemo:NSStringFromSelector(_cmd)];
+        
+        if (ringbackUriType.length > 0) {
+            NSLog(@"RNInCallManager.start() play ringback first. type=%@", ringbackUriType);
+            [self startRingback:ringbackUriType];
+        }
+        
+        if ([_media isEqualToString:@"audio"]) {
+            [self startProximitySensor];
+        }
+        [self setKeepScreenOn:YES];
+        _audioSessionInitialized = YES;
+        //self.debugAudioSession()
+        
+    });
 }
 
 RCT_EXPORT_METHOD(stop:(NSString *)busytoneUriType)
@@ -177,9 +180,9 @@ RCT_EXPORT_METHOD(stop:(NSString *)busytoneUriType)
     if (!_audioSessionInitialized) {
         return;
     }
-
+    
     [self stopRingback];
-
+    
     if (busytoneUriType.length > 0 && [self startBusytone:busytoneUriType]) {
         // play busytone first, and call this func again when finish
         NSLog(@"RNInCallManager.stop(): play busytone before stop");
@@ -218,13 +221,13 @@ RCT_EXPORT_METHOD(setFlashOn:(BOOL)enable
         if (device.hasTorch && device.position == AVCaptureDevicePositionBack) {
             @try {
                 [device lockForConfiguration:nil];
-
+                
                 if (enable) {
                     [device setTorchMode:AVCaptureTorchModeOn];
                 } else {
                     [device setTorchMode:AVCaptureTorchModeOff];
                 }
-
+                
                 [device unlockForConfiguration];
             } @catch (NSException *e) {}
         }
@@ -244,7 +247,7 @@ RCT_EXPORT_METHOD(setSpeakerphoneOn:(BOOL)enable)
     BOOL success;
     NSError *error = nil;
     NSArray* routes = [_audioSession availableInputs];
-
+    
     if(!enable){
         NSLog(@"Routing audio via Earpiece");
         @try {
@@ -258,7 +261,7 @@ RCT_EXPORT_METHOD(setSpeakerphoneOn:(BOOL)enable)
             success = [_audioSession setActive:YES error:&error];
             if (!success) NSLog(@"Audio session override failed: %@", error);
             else NSLog(@"AudioSession override is successful ");
-
+            
         } @catch (NSException *e) {
             NSLog(@"Error occurred while routing audio via Earpiece", e.reason);
         }
@@ -267,8 +270,8 @@ RCT_EXPORT_METHOD(setSpeakerphoneOn:(BOOL)enable)
         @try {
             NSLog(@"Available routes", routes[0]);
             success = [_audioSession setCategory:AVAudioSessionCategoryPlayAndRecord
-                        withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker
-                        error:nil];
+                                     withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker
+                                           error:nil];
             if (!success)  NSLog(@"Cannot set category due to error: %@", error);
             success = [_audioSession setMode:AVAudioSessionModeVoiceChat error: &error];
             if (!success)  NSLog(@"Cannot set mode due to error: %@", error);
@@ -300,7 +303,7 @@ RCT_EXPORT_METHOD(startRingback:(NSString *)_ringbackUriType)
 {
     // you may rejected by apple when publish app if you use system sound instead of bundled sound.
     NSLog(@"RNInCallManager.startRingback(): type=%@", _ringbackUriType);
-
+    
     @try {
         if (_ringback != nil) {
             if ([_ringback isPlaying]) {
@@ -312,8 +315,8 @@ RCT_EXPORT_METHOD(startRingback:(NSString *)_ringbackUriType)
         }
         // ios don't have embedded DTMF tone generator. use system dtmf sound files.
         NSString *ringbackUriType = [_ringbackUriType isEqualToString:@"_DTMF_"]
-            ? @"_DEFAULT_"
-            : _ringbackUriType;
+        ? @"_DEFAULT_"
+        : _ringbackUriType;
         NSURL *ringbackUri = [self getRingbackUri:ringbackUriType];
         if (ringbackUri == nil) {
             NSLog(@"RNInCallManager.startRingback(): no available media");
@@ -324,7 +327,7 @@ RCT_EXPORT_METHOD(startRingback:(NSString *)_ringbackUriType)
         _ringback.delegate = self;
         _ringback.numberOfLoops = -1; // you need to stop it explicitly
         [_ringback prepareToPlay];
-
+        
         //self.audioSessionSetCategory(self.incallAudioCategory, [.DefaultToSpeaker, .AllowBluetooth], #function)
         [self audioSessionSetCategory:_incallAudioCategory
                               options:0
@@ -349,7 +352,7 @@ RCT_EXPORT_METHOD(stopRingback)
 }
 
 RCT_EXPORT_METHOD(startRingtone:(NSString *)ringtoneUriType
-               ringtoneCategory:(NSString *)ringtoneCategory)
+                  ringtoneCategory:(NSString *)ringtoneCategory)
 {
     // you may rejected by apple when publish app if you use system sound instead of bundled sound.
     NSLog(@"RNInCallManager.startRingtone(): type: %@", ringtoneUriType);
@@ -367,21 +370,21 @@ RCT_EXPORT_METHOD(startRingtone:(NSString *)ringtoneUriType
             NSLog(@"RNInCallManager.startRingtone(): no available media");
             return;
         }
-
+        
         // --- ios has Ringer/Silent switch, so just play without check ringer volume.
         [self storeOriginalAudioSetup];
         _ringtone = [[AVAudioPlayer alloc] initWithContentsOfURL:ringtoneUri error:nil];
         _ringtone.delegate = self;
         _ringtone.numberOfLoops = -1; // you need to stop it explicitly
         [_ringtone prepareToPlay];
-
+        
         // --- 1. if we use Playback, it can supports background playing (starting from foreground), but it would not obey Ring/Silent switch.
         // ---    make sure you have enabled 'audio' tag ( or 'voip' tag ) at XCode -> Capabilities -> BackgroundMode
         // --- 2. if we use SoloAmbient, it would obey Ring/Silent switch in the foreground, but does not support background playing,
         // ---    thus, then you should play ringtone again via local notification after back to home during a ring session.
-
+        
         // we prefer 2. by default, since most of users doesn't want to interrupted by a ringtone if Silent mode is on.
-
+        
         //self.audioSessionSetCategory(AVAudioSessionCategoryPlayback, [.DuckOthers], #function)
         if ([ringtoneCategory isEqualToString:@"playback"]) {
             [self audioSessionSetCategory:AVAudioSessionCategoryPlayback
@@ -438,7 +441,7 @@ RCT_EXPORT_METHOD(stopRingtone)
 }
 
 RCT_EXPORT_METHOD(checkRecordPermission:(RCTPromiseResolveBlock)resolve
-                                 reject:(RCTPromiseRejectBlock)reject)
+                  reject:(RCTPromiseRejectBlock)reject)
 {
     [self _checkRecordPermission];
     if (_recordPermission != nil) {
@@ -449,7 +452,7 @@ RCT_EXPORT_METHOD(checkRecordPermission:(RCTPromiseResolveBlock)resolve
 }
 
 RCT_EXPORT_METHOD(requestRecordPermission:(RCTPromiseResolveBlock)resolve
-                                   reject:(RCTPromiseRejectBlock)reject)
+                  reject:(RCTPromiseRejectBlock)reject)
 {
     NSLog(@"RNInCallManager.requestRecordPermission(): waiting for user confirmation...");
     [_audioSession requestRecordPermission:^(BOOL granted) {
@@ -486,7 +489,7 @@ RCT_EXPORT_METHOD(requestRecordPermission:(RCTPromiseResolveBlock)resolve
 }
 
 RCT_EXPORT_METHOD(checkCameraPermission:(RCTPromiseResolveBlock)resolve
-                                 reject:(RCTPromiseRejectBlock)reject)
+                  reject:(RCTPromiseRejectBlock)reject)
 {
     [self _checkCameraPermission];
     if (_cameraPermission != nil) {
@@ -497,7 +500,7 @@ RCT_EXPORT_METHOD(checkCameraPermission:(RCTPromiseResolveBlock)resolve
 }
 
 RCT_EXPORT_METHOD(requestCameraPermission:(RCTPromiseResolveBlock)resolve
-                                   reject:(RCTPromiseRejectBlock)reject)
+                  reject:(RCTPromiseRejectBlock)reject)
 {
     NSLog(@"RNInCallManager.requestCameraPermission(): waiting for user confirmation...");
     [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo
@@ -513,9 +516,9 @@ RCT_EXPORT_METHOD(requestCameraPermission:(RCTPromiseResolveBlock)resolve
 }
 
 RCT_EXPORT_METHOD(getAudioUriJS:(NSString *)audioType
-                       fileType:(NSString *)fileType
-                        resolve:(RCTPromiseResolveBlock)resolve
-                         reject:(RCTPromiseRejectBlock)reject)
+                  fileType:(NSString *)fileType
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
 {
     NSURL *result = nil;
     if ([audioType isEqualToString:@"ringback"]) {
@@ -535,24 +538,24 @@ RCT_EXPORT_METHOD(getAudioUriJS:(NSString *)audioType
 }
 
 RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
-                                      reject:(RCTPromiseRejectBlock)reject)
+                  reject:(RCTPromiseRejectBlock)reject)
 {
     BOOL wiredHeadsetPluggedIn = [self isWiredHeadsetPluggedIn];
     resolve(@{
         @"isWiredHeadsetPluggedIn": wiredHeadsetPluggedIn ? @YES : @NO,
-    });
+            });
 }
 
 - (void)updateAudioRoute
 {
     NSLog(@"RNInCallManager.updateAudioRoute(): [Enter] forceSpeakerOn flag=%d media=%@ category=%@ mode=%@", _forceSpeakerOn, _media, _audioSession.category, _audioSession.mode);
     //self.debugAudioSession()
-
+    
     //AVAudioSessionPortOverride overrideAudioPort;
     int overrideAudioPort;
     NSString *overrideAudioPortString = @"";
     NSString *audioMode = @"";
-
+    
     // --- WebRTC native code will change audio mode automatically when established.
     // --- It would have some race condition if we change audio mode with webrtc at the same time.
     // --- So we should not change audio mode as possible as we can. Only when default video call which wants to force speaker off.
@@ -581,12 +584,12 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
             [self stopProximitySensor];
         }
     }
-
+    
     BOOL isCurrentRouteToSpeaker;
     isCurrentRouteToSpeaker = [self checkAudioRoute:@[AVAudioSessionPortBuiltInSpeaker]
-                                               routeType:@"output"];
+                                          routeType:@"output"];
     if ((overrideAudioPort == AVAudioSessionPortOverrideSpeaker && !isCurrentRouteToSpeaker)
-            || (overrideAudioPort == AVAudioSessionPortOverrideNone && isCurrentRouteToSpeaker)) {
+        || (overrideAudioPort == AVAudioSessionPortOverrideNone && isCurrentRouteToSpeaker)) {
         @try {
             [_audioSession overrideOutputAudioPort:overrideAudioPort error:nil];
             NSLog(@"RNInCallManager.updateAudioRoute(): audioSession.overrideOutputAudioPort(%@) success", overrideAudioPortString);
@@ -596,7 +599,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     } else {
         NSLog(@"RNInCallManager.updateAudioRoute(): did NOT overrideOutputAudioPort()");
     }
-
+    
     if (audioMode.length > 0 && ![_audioSession.mode isEqualToString:audioMode]) {
         [self audioSessionSetMode:audioMode
                        callerMemo:NSStringFromSelector(_cmd)];
@@ -611,11 +614,11 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
               routeType:(NSString *)routeType
 {
     AVAudioSessionRouteDescription *currentRoute = _audioSession.currentRoute;
-
+    
     if (currentRoute != nil) {
         NSArray<AVAudioSessionPortDescription *> *routes = [routeType isEqualToString:@"input"]
-            ? currentRoute.inputs
-            : currentRoute.outputs;
+        ? currentRoute.inputs
+        : currentRoute.outputs;
         for (AVAudioSessionPortDescription *portDescription in routes) {
             if ([targetPortTypeArray containsObject:portDescription.portType]) {
                 return YES;
@@ -638,11 +641,11 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
                 [self stopBusytone];
             }
         }
-
+        
         // ios don't have embedded DTMF tone generator. use system dtmf sound files.
         NSString *busytoneUriType = [_busytoneUriType isEqualToString:@"_DTMF_"]
-            ? @"_DEFAULT_"
-            : _busytoneUriType;
+        ? @"_DEFAULT_"
+        : _busytoneUriType;
         NSURL *busytoneUri = [self getBusytoneUri:busytoneUriType];
         if (busytoneUri == nil) {
             NSLog(@"RNInCallManager.startBusytone(): no available media");
@@ -653,7 +656,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
         _busytone.delegate = self;
         _busytone.numberOfLoops = 0; // it's part of start(), will stop at stop()
         [_busytone prepareToPlay];
-
+        
         //self.audioSessionSetCategory(self.incallAudioCategory, [.DefaultToSpeaker, .AllowBluetooth], #function)
         [self audioSessionSetCategory:_incallAudioCategory
                               options:0
@@ -682,8 +685,8 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     // --- only check for a audio device plugged into headset port instead bluetooth/usb/hdmi
     return [self checkAudioRoute:@[AVAudioSessionPortHeadphones]
                        routeType:@"output"]
-        || [self checkAudioRoute:@[AVAudioSessionPortHeadsetMic]
-                       routeType:@"input"];
+    || [self checkAudioRoute:@[AVAudioSessionPortHeadsetMic]
+                   routeType:@"input"];
 }
 
 - (void)audioSessionSetCategory:(NSString *)audioCategory
@@ -717,7 +720,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
 }
 
 - (void)audioSessionSetActive:(BOOL)audioActive
-                   options:(AVAudioSessionSetActiveOptions)options
+                      options:(AVAudioSessionSetActiveOptions)options
                    callerMemo:(NSString *)callerMemo
 {
     @try {
@@ -757,15 +760,15 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     if (_isProximityRegistered) {
         return;
     }
-
+    
     NSLog(@"RNInCallManager.startProximitySensor()");
     _currentDevice.proximityMonitoringEnabled = YES;
-
+    
     // --- in case it didn't deallocate when ViewDidUnload
     [self stopObserve:_proximityObserver
                  name:UIDeviceProximityStateDidChangeNotification
                object:nil];
-
+    
     _proximityObserver = [self startObserve:UIDeviceProximityStateDidChangeNotification
                                      object:_currentDevice
                                       queue: nil
@@ -777,7 +780,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
             [self sendEventWithName:@"Proximity" body:@{@"isNear": state ? @YES : @NO}];
         }
     }];
-
+    
     _isProximityRegistered = YES;
 }
 
@@ -786,15 +789,15 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     if (!_isProximityRegistered) {
         return;
     }
-
+    
     NSLog(@"RNInCallManager.stopProximitySensor()");
     _currentDevice.proximityMonitoringEnabled = NO;
-
+    
     // --- remove all no matter what object
     [self stopObserve:_proximityObserver
                  name:UIDeviceProximityStateDidChangeNotification
                object:nil];
-
+    
     _isProximityRegistered = NO;
 }
 
@@ -824,21 +827,21 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
         return;
     }
     NSLog(@"RNInCallManager.startAudioSessionInterruptionNotification()");
-
+    
     // --- in case it didn't deallocate when ViewDidUnload
     [self stopObserve:_audioSessionInterruptionObserver
                  name:AVAudioSessionInterruptionNotification
                object:nil];
-
+    
     _audioSessionInterruptionObserver = [self startObserve:AVAudioSessionInterruptionNotification
                                                     object:nil
                                                      queue:nil
                                                      block:^(NSNotification *notification) {
         if (notification.userInfo == nil
-                || ![notification.name isEqualToString:AVAudioSessionInterruptionNotification]) {
+            || ![notification.name isEqualToString:AVAudioSessionInterruptionNotification]) {
             return;
         }
-
+        
         //NSUInteger rawValue = notification.userInfo[AVAudioSessionInterruptionTypeKey].unsignedIntegerValue;
         NSNumber *interruptType = [notification.userInfo objectForKey:@"AVAudioSessionInterruptionTypeKey"];
         if ([interruptType unsignedIntegerValue] == AVAudioSessionInterruptionTypeBegan) {
@@ -850,7 +853,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
         }
         //NSLog(@"RNInCallManager.AudioSessionInterruptionNotification: could not resolve notification");
     }];
-
+    
     _isAudioSessionInterruptionRegistered = YES;
 }
 
@@ -869,98 +872,98 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
 
 - (void)startAudioSessionRouteChangeNotification
 {
-        if (_isAudioSessionRouteChangeRegistered) {
+    if (_isAudioSessionRouteChangeRegistered) {
+        return;
+    }
+    
+    NSLog(@"RNInCallManager.startAudioSessionRouteChangeNotification()");
+    
+    // --- in case it didn't deallocate when ViewDidUnload
+    [self stopObserve:_audioSessionRouteChangeObserver
+                 name: AVAudioSessionRouteChangeNotification
+               object: nil];
+    
+    _audioSessionRouteChangeObserver = [self startObserve:AVAudioSessionRouteChangeNotification
+                                                   object: nil
+                                                    queue: nil
+                                                    block:^(NSNotification *notification) {
+        if (notification.userInfo == nil
+            || ![notification.name isEqualToString:AVAudioSessionRouteChangeNotification]) {
             return;
         }
-
-        NSLog(@"RNInCallManager.startAudioSessionRouteChangeNotification()");
-
-        // --- in case it didn't deallocate when ViewDidUnload
-        [self stopObserve:_audioSessionRouteChangeObserver
-                     name: AVAudioSessionRouteChangeNotification
-                   object: nil];
-
-        _audioSessionRouteChangeObserver = [self startObserve:AVAudioSessionRouteChangeNotification
-                                                       object: nil
-                                                        queue: nil
-                                                        block:^(NSNotification *notification) {
-            if (notification.userInfo == nil
-                    || ![notification.name isEqualToString:AVAudioSessionRouteChangeNotification]) {
-                return;
-            }
-
-            NSNumber *routeChangeType = [notification.userInfo objectForKey:@"AVAudioSessionRouteChangeReasonKey"];
-            NSUInteger routeChangeTypeValue = [routeChangeType unsignedIntegerValue];
-
-            switch (routeChangeTypeValue) {
-                case AVAudioSessionRouteChangeReasonUnknown:
-                    NSLog(@"RNInCallManager.AudioRouteChange.Reason: Unknown");
-                    break;
-                case AVAudioSessionRouteChangeReasonNewDeviceAvailable:
-                    NSLog(@"RNInCallManager.AudioRouteChange.Reason: NewDeviceAvailable");
-                    if ([self checkAudioRoute:@[AVAudioSessionPortHeadsetMic]
-                                    routeType:@"input"]) {
-                        [self sendEventWithName:@"WiredHeadset"
-                                           body:@{
-                                               @"isPlugged": @YES,
-                                               @"hasMic": @YES,
-                                               @"deviceName": AVAudioSessionPortHeadsetMic,
-                                           }];
-                    } else if ([self checkAudioRoute:@[AVAudioSessionPortHeadphones]
-                                           routeType:@"output"]) {
-                        [self sendEventWithName:@"WiredHeadset"
-                                           body:@{
-                                               @"isPlugged": @YES,
-                                               @"hasMic": @NO,
-                                               @"deviceName": AVAudioSessionPortHeadphones,
-                                           }];
-                    }
-                    break;
-                case AVAudioSessionRouteChangeReasonOldDeviceUnavailable:
-                    NSLog(@"RNInCallManager.AudioRouteChange.Reason: OldDeviceUnavailable");
-                    if (![self isWiredHeadsetPluggedIn]) {
-                        [self sendEventWithName:@"WiredHeadset"
-                                           body:@{
-                                               @"isPlugged": @NO,
-                                               @"hasMic": @NO,
-                                               @"deviceName": @"",
-                                           }];
-                    }
-                    break;
-                case AVAudioSessionRouteChangeReasonCategoryChange:
-                    NSLog(@"RNInCallManager.AudioRouteChange.Reason: CategoryChange. category=%@ mode=%@", _audioSession.category, _audioSession.mode);
-                    [self updateAudioRoute];
-                    break;
-                case AVAudioSessionRouteChangeReasonOverride:
-                    NSLog(@"RNInCallManager.AudioRouteChange.Reason: Override");
-                    break;
-                case AVAudioSessionRouteChangeReasonWakeFromSleep:
-                    NSLog(@"RNInCallManager.AudioRouteChange.Reason: WakeFromSleep");
-                    break;
-                case AVAudioSessionRouteChangeReasonNoSuitableRouteForCategory:
-                    NSLog(@"RNInCallManager.AudioRouteChange.Reason: NoSuitableRouteForCategory");
-                    break;
-                case AVAudioSessionRouteChangeReasonRouteConfigurationChange:
-                    NSLog(@"RNInCallManager.AudioRouteChange.Reason: RouteConfigurationChange. category=%@ mode=%@", _audioSession.category, _audioSession.mode);
-                    break;
-                default:
-                    NSLog(@"RNInCallManager.AudioRouteChange.Reason: Unknow Value");
-                    break;
-            }
-
-            NSNumber *silenceSecondaryAudioHintType = [notification.userInfo objectForKey:@"AVAudioSessionSilenceSecondaryAudioHintTypeKey"];
-            NSUInteger silenceSecondaryAudioHintTypeValue = [silenceSecondaryAudioHintType unsignedIntegerValue];
-            switch (silenceSecondaryAudioHintTypeValue) {
-                case AVAudioSessionSilenceSecondaryAudioHintTypeBegin:
-                    NSLog(@"RNInCallManager.AudioRouteChange.SilenceSecondaryAudioHint: Begin");
-                case AVAudioSessionSilenceSecondaryAudioHintTypeEnd:
-                    NSLog(@"RNInCallManager.AudioRouteChange.SilenceSecondaryAudioHint: End");
-                default:
-                    NSLog(@"RNInCallManager.AudioRouteChange.SilenceSecondaryAudioHint: Unknow Value");
-            }
-        }];
-
-        _isAudioSessionRouteChangeRegistered = YES;
+        
+        NSNumber *routeChangeType = [notification.userInfo objectForKey:@"AVAudioSessionRouteChangeReasonKey"];
+        NSUInteger routeChangeTypeValue = [routeChangeType unsignedIntegerValue];
+        
+        switch (routeChangeTypeValue) {
+            case AVAudioSessionRouteChangeReasonUnknown:
+                NSLog(@"RNInCallManager.AudioRouteChange.Reason: Unknown");
+                break;
+            case AVAudioSessionRouteChangeReasonNewDeviceAvailable:
+                NSLog(@"RNInCallManager.AudioRouteChange.Reason: NewDeviceAvailable");
+                if ([self checkAudioRoute:@[AVAudioSessionPortHeadsetMic]
+                                routeType:@"input"]) {
+                    [self sendEventWithName:@"WiredHeadset"
+                                       body:@{
+                                           @"isPlugged": @YES,
+                                           @"hasMic": @YES,
+                                           @"deviceName": AVAudioSessionPortHeadsetMic,
+                                       }];
+                } else if ([self checkAudioRoute:@[AVAudioSessionPortHeadphones]
+                                       routeType:@"output"]) {
+                    [self sendEventWithName:@"WiredHeadset"
+                                       body:@{
+                                           @"isPlugged": @YES,
+                                           @"hasMic": @NO,
+                                           @"deviceName": AVAudioSessionPortHeadphones,
+                                       }];
+                }
+                break;
+            case AVAudioSessionRouteChangeReasonOldDeviceUnavailable:
+                NSLog(@"RNInCallManager.AudioRouteChange.Reason: OldDeviceUnavailable");
+                if (![self isWiredHeadsetPluggedIn]) {
+                    [self sendEventWithName:@"WiredHeadset"
+                                       body:@{
+                                           @"isPlugged": @NO,
+                                           @"hasMic": @NO,
+                                           @"deviceName": @"",
+                                       }];
+                }
+                break;
+            case AVAudioSessionRouteChangeReasonCategoryChange:
+                NSLog(@"RNInCallManager.AudioRouteChange.Reason: CategoryChange. category=%@ mode=%@", _audioSession.category, _audioSession.mode);
+                [self updateAudioRoute];
+                break;
+            case AVAudioSessionRouteChangeReasonOverride:
+                NSLog(@"RNInCallManager.AudioRouteChange.Reason: Override");
+                break;
+            case AVAudioSessionRouteChangeReasonWakeFromSleep:
+                NSLog(@"RNInCallManager.AudioRouteChange.Reason: WakeFromSleep");
+                break;
+            case AVAudioSessionRouteChangeReasonNoSuitableRouteForCategory:
+                NSLog(@"RNInCallManager.AudioRouteChange.Reason: NoSuitableRouteForCategory");
+                break;
+            case AVAudioSessionRouteChangeReasonRouteConfigurationChange:
+                NSLog(@"RNInCallManager.AudioRouteChange.Reason: RouteConfigurationChange. category=%@ mode=%@", _audioSession.category, _audioSession.mode);
+                break;
+            default:
+                NSLog(@"RNInCallManager.AudioRouteChange.Reason: Unknow Value");
+                break;
+        }
+        
+        NSNumber *silenceSecondaryAudioHintType = [notification.userInfo objectForKey:@"AVAudioSessionSilenceSecondaryAudioHintTypeKey"];
+        NSUInteger silenceSecondaryAudioHintTypeValue = [silenceSecondaryAudioHintType unsignedIntegerValue];
+        switch (silenceSecondaryAudioHintTypeValue) {
+            case AVAudioSessionSilenceSecondaryAudioHintTypeBegin:
+                NSLog(@"RNInCallManager.AudioRouteChange.SilenceSecondaryAudioHint: Begin");
+            case AVAudioSessionSilenceSecondaryAudioHintTypeEnd:
+                NSLog(@"RNInCallManager.AudioRouteChange.SilenceSecondaryAudioHint: End");
+            default:
+                NSLog(@"RNInCallManager.AudioRouteChange.SilenceSecondaryAudioHint: Unknow Value");
+        }
+    }];
+    
+    _isAudioSessionRouteChangeRegistered = YES;
 }
 
 - (void)stopAudioSessionRouteChangeNotification
@@ -968,7 +971,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     if (!_isAudioSessionRouteChangeRegistered) {
         return;
     }
-
+    
     NSLog(@"RNInCallManager.stopAudioSessionRouteChangeNotification()");
     // --- remove all no matter what object
     [self stopObserve:_audioSessionRouteChangeObserver
@@ -982,14 +985,14 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     if (_isAudioSessionMediaServicesWereLostRegistered) {
         return;
     }
-
+    
     NSLog(@"RNInCallManager.startAudioSessionMediaServicesWereLostNotification()");
-
+    
     // --- in case it didn't deallocate when ViewDidUnload
     [self stopObserve:_audioSessionMediaServicesWereLostObserver
                  name:AVAudioSessionMediaServicesWereLostNotification
                object:nil];
-
+    
     _audioSessionMediaServicesWereLostObserver = [self startObserve:AVAudioSessionMediaServicesWereLostNotification
                                                              object:nil
                                                               queue:nil
@@ -997,7 +1000,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
         // --- This notification has no userInfo dictionary.
         NSLog(@"RNInCallManager.AudioSessionMediaServicesWereLostNotification: Media Services Were Lost");
     }];
-
+    
     _isAudioSessionMediaServicesWereLostRegistered = YES;
 }
 
@@ -1006,14 +1009,14 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     if (!_isAudioSessionMediaServicesWereLostRegistered) {
         return;
     }
-
+    
     NSLog(@"RNInCallManager.stopAudioSessionMediaServicesWereLostNotification()");
-
+    
     // --- remove all no matter what object
     [self stopObserve:_audioSessionMediaServicesWereLostObserver
                  name:AVAudioSessionMediaServicesWereLostNotification
                object:nil];
-
+    
     _isAudioSessionMediaServicesWereLostRegistered = NO;
 }
 
@@ -1022,14 +1025,14 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     if (_isAudioSessionMediaServicesWereResetRegistered) {
         return;
     }
-
+    
     NSLog(@"RNInCallManager.startAudioSessionMediaServicesWereResetNotification()");
-
+    
     // --- in case it didn't deallocate when ViewDidUnload
     [self stopObserve:_audioSessionMediaServicesWereResetObserver
                  name:AVAudioSessionMediaServicesWereResetNotification
                object:nil];
-
+    
     _audioSessionMediaServicesWereResetObserver = [self startObserve:AVAudioSessionMediaServicesWereResetNotification
                                                               object:nil
                                                                queue:nil
@@ -1037,7 +1040,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
         // --- This notification has no userInfo dictionary.
         NSLog(@"RNInCallManager.AudioSessionMediaServicesWereResetNotification: Media Services Were Reset");
     }];
-
+    
     _isAudioSessionMediaServicesWereResetRegistered = YES;
 }
 
@@ -1046,14 +1049,14 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     if (!_isAudioSessionMediaServicesWereResetRegistered) {
         return;
     }
-
+    
     NSLog(@"RNInCallManager.stopAudioSessionMediaServicesWereResetNotification()");
-
+    
     // --- remove all no matter what object
     [self stopObserve:_audioSessionMediaServicesWereResetObserver
                  name:AVAudioSessionMediaServicesWereResetNotification
                object:nil];
-
+    
     _isAudioSessionMediaServicesWereResetRegistered = NO;
 }
 
@@ -1062,23 +1065,23 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     if (_isAudioSessionSilenceSecondaryAudioHintRegistered) {
         return;
     }
-
+    
     NSLog(@"RNInCallManager.startAudioSessionSilenceSecondaryAudioHintNotification()");
-
+    
     // --- in case it didn't deallocate when ViewDidUnload
     [self stopObserve:_audioSessionSilenceSecondaryAudioHintObserver
                  name:AVAudioSessionSilenceSecondaryAudioHintNotification
                object:nil];
-
+    
     _audioSessionSilenceSecondaryAudioHintObserver = [self startObserve:AVAudioSessionSilenceSecondaryAudioHintNotification
                                                                  object:nil
                                                                   queue:nil
                                                                   block:^(NSNotification *notification) {
         if (notification.userInfo == nil
-                || ![notification.name isEqualToString:AVAudioSessionSilenceSecondaryAudioHintNotification]) {
+            || ![notification.name isEqualToString:AVAudioSessionSilenceSecondaryAudioHintNotification]) {
             return;
         }
-
+        
         NSNumber *silenceSecondaryAudioHintType = [notification.userInfo objectForKey:@"AVAudioSessionSilenceSecondaryAudioHintTypeKey"];
         NSUInteger silenceSecondaryAudioHintTypeValue = [silenceSecondaryAudioHintType unsignedIntegerValue];
         switch (silenceSecondaryAudioHintTypeValue) {
@@ -1101,13 +1104,13 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     if (!_isAudioSessionSilenceSecondaryAudioHintRegistered) {
         return;
     }
-
+    
     NSLog(@"RNInCallManager.stopAudioSessionSilenceSecondaryAudioHintNotification()");
     // --- remove all no matter what object
     [self stopObserve:_audioSessionSilenceSecondaryAudioHintObserver
                  name:AVAudioSessionSilenceSecondaryAudioHintNotification
                object:nil];
-
+    
     _isAudioSessionSilenceSecondaryAudioHintRegistered = NO;
 }
 
@@ -1117,14 +1120,14 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
              block:(void (^)(NSNotification *))block
 {
     return [[NSNotificationCenter defaultCenter] addObserverForName:name
-                                               object:object
-                                                queue:queue
-                                           usingBlock:block];
+                                                             object:object
+                                                              queue:queue
+                                                         usingBlock:block];
 }
 
 - (void)stopObserve:(id)observer
-             name:(NSString *)name
-           object:(id)object
+               name:(NSString *)name
+             object:(id)object
 {
     if (observer == nil) return;
     [[NSNotificationCenter defaultCenter] removeObserver:observer
@@ -1140,15 +1143,15 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     //NSString *fileSysPath = @"/System/Library/Audio/UISounds";
     NSString *fileSysWithExt = @"Marimba.m4r";
     NSString *fileSysPath = @"/Library/Ringtones";
-
+    
     // --- you can't get default user perfrence sound in ios
     NSString *type = [_type isEqualToString:@""] || [_type isEqualToString:@"_DEFAULT_"]
-        ? fileSysWithExt
-        : _type;
-
+    ? fileSysWithExt
+    : _type;
+    
     NSURL *bundleUri = _bundleRingbackUri;
     NSURL *defaultUri = _defaultRingbackUri;
-
+    
     NSURL *uri = [self getAudioUri:type
                         fileBundle:fileBundle
                      fileBundleExt:fileBundleExt
@@ -1156,10 +1159,10 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
                        fileSysPath:fileSysPath
                          uriBundle:&bundleUri
                         uriDefault:&defaultUri];
-
+    
     _bundleRingbackUri = bundleUri;
     _defaultRingbackUri = defaultUri;
-
+    
     return uri;
 }
 
@@ -1171,12 +1174,12 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     NSString *fileSysPath = @"/System/Library/Audio/UISounds";
     // --- you can't get default user perfrence sound in ios
     NSString *type = [_type isEqualToString:@""] || [_type isEqualToString:@"_DEFAULT_"]
-        ? fileSysWithExt
-        : _type;
-
+    ? fileSysWithExt
+    : _type;
+    
     NSURL *bundleUri = _bundleBusytoneUri;
     NSURL *defaultUri = _defaultBusytoneUri;
-
+    
     NSURL *uri = [self getAudioUri:type
                         fileBundle:fileBundle
                      fileBundleExt:fileBundleExt
@@ -1184,10 +1187,10 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
                        fileSysPath:fileSysPath
                          uriBundle:&bundleUri
                         uriDefault:&defaultUri];
-
+    
     _bundleBusytoneUri = bundleUri;
     _defaultBusytoneUri = defaultUri;
-
+    
     return uri;
 }
 
@@ -1199,12 +1202,12 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     NSString *fileSysPath = @"/Library/Ringtones";
     // --- you can't get default user perfrence sound in ios
     NSString *type = [_type isEqualToString:@""] || [_type isEqualToString:@"_DEFAULT_"]
-        ? fileSysWithExt
-        : _type;
-
+    ? fileSysWithExt
+    : _type;
+    
     NSURL *bundleUri = _bundleRingtoneUri;
     NSURL *defaultUri = _defaultRingtoneUri;
-
+    
     NSURL *uri = [self getAudioUri:type
                         fileBundle:fileBundle
                      fileBundleExt:fileBundleExt
@@ -1212,10 +1215,10 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
                        fileSysPath:fileSysPath
                          uriBundle:&bundleUri
                         uriDefault:&defaultUri];
-
+    
     _bundleRingtoneUri = bundleUri;
     _defaultRingtoneUri = defaultUri;
-
+    
     return uri;
 }
 
@@ -1241,7 +1244,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
             return *uriBundle;
         }
     }
-
+    
     if (*uriDefault == nil) {
         NSString *target = [NSString stringWithFormat:@"%@/%@", fileSysPath, type];
         *uriDefault = [self getSysFileUri:target];
@@ -1252,7 +1255,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
 - (NSURL *)getSysFileUri:(NSString *)target
 {
     NSURL *url = [[NSURL alloc] initFileURLWithPath:target isDirectory:NO];
-
+    
     if (url != nil) {
         NSString *path = url.path;
         if (path != nil) {
@@ -1278,7 +1281,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
     NSString *filename = player.url.URLByDeletingPathExtension.lastPathComponent;
     NSLog(@"RNInCallManager.audioPlayerDidFinishPlaying(): finished playing: %@", filename);
     if ([filename isEqualToString:_bundleBusytoneUri.URLByDeletingPathExtension.lastPathComponent]
-            || [filename isEqualToString:_defaultBusytoneUri.URLByDeletingPathExtension.lastPathComponent]) {
+        || [filename isEqualToString:_defaultBusytoneUri.URLByDeletingPathExtension.lastPathComponent]) {
         //[self stopBusytone];
         NSLog(@"RNInCallManager.audioPlayerDidFinishPlaying(): busytone finished, invoke stop()");
         [self stop:@""];
